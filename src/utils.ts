@@ -86,10 +86,20 @@ export function filterSvgFiles(svgFolderPath: string): string[] {
  * @return {Array} unicode array
  */
 function getIconUnicode(name: string) {
-  let unicode = String.fromCharCode(startUnicode++);
-  UnicodeObj[name] = unicode;
-  return [unicode];
+  let unicode = name.split('').map(function (value, index, array) {
+		var temp = value.charCodeAt(0).toString(16).toUpperCase();
+		if (temp.length > 2) {
+			return '\\u' + temp
+		}
+		return value
+  }).join('')
+  UnicodeObj[name] = unicode
+  return [unicode]
+  // let unicode = String.fromCharCode(startUnicode++);
+  // UnicodeObj[name] = unicode;
+  // return [unicode];
 }
+
 
 
 /**
