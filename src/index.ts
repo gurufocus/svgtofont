@@ -196,8 +196,8 @@ export default async (options: SvgToFontOptions = {}) => {
           <h4>${options.classNamePrefix}-${name}</h4>
         </li>
       `);
-      cssString.push(`.${options.classNamePrefix}-${name}:before { content: "\\${_code.charCodeAt(0).toString(16)}"; }\n`);
-      cssToVars.push(`$${options.classNamePrefix}-${name}: "\\${_code.charCodeAt(0).toString(16)}";\n`);
+      cssString.push(`.${options.classNamePrefix}-${name}:before { content: "${_code}"; }\n`);
+      cssToVars.push(`$${options.classNamePrefix}-${name}: "${_code}";\n`);
     });
     const ttf = await createTTF(options);
     await createEOT(options, ttf);
