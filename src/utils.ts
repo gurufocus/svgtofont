@@ -25,6 +25,7 @@ let startUnicode = 0xea01;
  */
 export function createSVG(options: SvgToFontOptions = {}): Promise<Record<string, string>> {
   startUnicode = options.startUnicode
+  UnicodeObj = {}
   return new Promise((resolve, reject) => {
     // init
     const fontStream = new SVGIcons2SVGFont({
@@ -81,6 +82,38 @@ export function filterSvgFiles(svgFolderPath: string): string[] {
   return svgArr;
 }
 
+export function snakeToUppercase(str: string) {
+  return str.split(/[-_]/)
+    .map(partial => partial.charAt(0).toUpperCase() + partial.slice(1))
+    .join('')
+}
+
+export type TypescriptOptions = {
+  extension?: 'd.ts' | 'ts' | 'tsx',
+  enumName?: string
+}
+
+/**
+ * Create typescript declarations for icon classnames
+ */
+export async function createTypescript(options: Omit<SvgToFontOptions, 'typescript'> & { typescript: TypescriptOptions | true }) {
+  const tsOptions = options.typescript === true ? {} : options.typescript;
+  const uppercaseFontName = snakeToUppercase(options.fontName);
+  const { extension = 'd.ts', enumName = uppercaseFontName } = tsOptions;
+  const DIST_PATH = path.join(options.dist, `${options.fontName}.${extension}`);
+  const fileNames = filterSvgFiles(options.src).map(svgPath => path.basename(svgPath, path.extname(svgPath)));
+  await fs.writeFile(
+    DIST_PATH,
+    `export enum ${enumName} {\n` +
+      fileNames.map(name => `  ${snakeToUppercase(name)} = "${options.classNamePrefix}-${name}"`).join(',\n') +
+    '\n}\n\n' +
+    `export type ${enumName}Classname = ${fileNames.map(name => `"${options.classNamePrefix}-${name}"`).join(' | ')}\n` +
+    `export type ${enumName}Icon = ${fileNames.map(name => `"${name}"`).join(' | ')}\n` +
+    `export const ${enumName}Prefix = "${options.classNamePrefix}-"`
+  );
+  console.log(`${color.green('SUCCESS')} Created ${DIST_PATH}`);
+}
+
 /*
  * Get icon unicode
  * @return {Array} unicode array
@@ -134,7 +167,7 @@ export function createEOT(options: SvgToFontOptions = {}, ttf: Buffer) {
         return reject(err);
       }
       console.log(`${color.green('SUCCESS')} ${color.blue('EOT')} font successfully created!\n  ╰┈▶ ${DIST_PATH}`);
-      resolve();
+      resolve(eot);
     });
   });
 };
@@ -151,7 +184,7 @@ export function createWOFF(options: SvgToFontOptions = {}, ttf: Buffer) {
         return reject(err);
       }
       console.log(`${color.green('SUCCESS')} ${color.blue('WOFF')} font successfully created!\n  ╰┈▶ ${DIST_PATH}`);
-      resolve();
+      resolve(woff);
     });
   });
 };
@@ -168,7 +201,9 @@ export function createWOFF2(options: SvgToFontOptions = {}, ttf: Buffer) {
         return reject(err);
       }
       console.log(`${color.green('SUCCESS')} ${color.blue('WOFF2')} font successfully created!\n  ╰┈▶ ${DIST_PATH}`);
-      resolve();
+      resolve({
+        path: DIST_PATH
+      });
     });
   });
 };
@@ -187,7 +222,7 @@ export function createSvgSymbol(options: SvgToFontOptions = {}) {
       const symbolNode = $("<symbol></symbol>");
       symbolNode.attr("viewBox", svgNode.attr("viewBox"));
       symbolNode.attr("id", `${options.classNamePrefix}-${fileName}`);
-      symbolNode.append(svgNode.contents());
+      symbolNode.append(svgNode.html());
       $('svg').append(symbolNode);
     });
 
@@ -196,7 +231,10 @@ export function createSvgSymbol(options: SvgToFontOptions = {}) {
         return reject(err);
       }
       console.log(`${color.green('SUCCESS')} ${color.blue('Svg Symbol')} font successfully created!\n  ╰┈▶ ${DIST_PATH}`);
-      resolve();
+      resolve({
+        path: DIST_PATH,
+        svg: $.html("svg")
+      });
     });
   });
 };
@@ -214,6 +252,16 @@ export type CSSOptions = {
    * Setting font size.
    */
   fontSize?: string;
+  /**
+   * Set the path in the css file
+   * https://github.com/jaywcjlove/svgtofont/issues/48#issuecomment-739547189
+   */
+  cssPath?: string;
+  /**
+   * Set file name
+   * https://github.com/jaywcjlove/svgtofont/issues/48#issuecomment-739547189
+   */
+  fileName?: string;
 }
 
 /**
@@ -222,7 +270,11 @@ export type CSSOptions = {
 export function copyTemplate(inDir: string, outDir: string, { _opts, ...vars }: Record<string, any> & { _opts: CSSOptions}) {
   const removeFiles: Array<string> = [];
   return new Promise((resolve, reject) => {
-    copy(inDir, outDir, vars, async (err, createdFiles) => {
+    copy(inDir, outDir, {
+      ...vars,
+      cssPath: _opts.cssPath || '',
+      filename: _opts.fileName || vars.fontname,
+    }, async (err, createdFiles) => {
       if (err) reject(err);
       createdFiles = createdFiles.map(filePath => {
         if (_opts.include && (new RegExp(_opts.include)).test(filePath) || !_opts.include) {
@@ -234,6 +286,15 @@ export function copyTemplate(inDir: string, outDir: string, { _opts, ...vars }: 
       if (removeFiles.length > 0) {
         await del([...removeFiles]);
       }
+      createdFiles = await Promise.all(createdFiles.map(async (file) => {
+        if (!file.endsWith('.template')) {
+          return file;
+        }
+
+        const changedFile = file.replace('.template', '');
+        await moveFile(file, changedFile);
+        return changedFile;
+      }));
       if (_opts.output) {
         const output = path.join(process.cwd(), _opts.output);
         await Promise.all(createdFiles.map(async (file) => {

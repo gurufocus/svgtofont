@@ -1,10 +1,32 @@
-svg to font
----
+<p align="center">
+  <a href="https://github.com/jaywcjlove/svgtofont/">
+    <img src="https://user-images.githubusercontent.com/1680273/106147487-dfb22880-61b2-11eb-8462-4f443a4c2201.png" alt="SVG To Font" />
+  </a>
+</p>
 
-[![](https://img.shields.io/github/issues/jaywcjlove/svgtofont.svg)](https://github.com/jaywcjlove/svgtofont/releases)
-[![](https://img.shields.io/github/forks/jaywcjlove/svgtofont.svg)](https://github.com/jaywcjlove/svgtofont/network)
-[![](https://img.shields.io/github/stars/jaywcjlove/svgtofont.svg)](https://github.com/jaywcjlove/svgtofont/stargazers)
-[![](https://img.shields.io/github/release/jaywcjlove/svgtofont.svg)](https://github.com/jaywcjlove/svgtofont/releases)
+<p align="center">
+  <a href="https://github.com/jaywcjlove/svgtofont/actions">
+    <img src="https://github.com/jaywcjlove/svgtofont/workflows/Build/badge.svg" alt="Build & Deploy">
+  </a>
+  <a href="https://gitee.com/jaywcjlove/svgtofont">
+    <img src="https://jaywcjlove.github.io/sb/ico/gitee.svg" alt="Gitee Repo">
+  </a>
+  <a href="https://uiwjs.github.io/npm-unpkg/#/pkg/svgtofont/file/README.md">
+    <img src="https://img.shields.io/badge/Open%20in-unpkg-blue" alt="Open in unpkg">
+  </a>
+  <a href="https://github.com/svgtofont/issues">
+    <img src="https://img.shields.io/github/issues/jaywcjlove/svgtofont.svg" alt="Issues">
+  </a>
+  <a href="https://github.com/svgtofont/network">
+    <img src="https://img.shields.io/github/forks/jaywcjlove/svgtofont.svg" alt="Forks">
+  </a>
+  <a href="https://github.com/svgtofont/stargazers">
+    <img src="https://img.shields.io/github/stars/jaywcjlove/svgtofont.svg" alt="Stars">
+  </a>
+  <a href="https://www.npmjs.com/package/svgtofont">
+    <img src="https://img.shields.io/npm/v/svgtofont.svg" alt="npm version">
+  </a>
+</p>
 
 Read a set of SVG icons and ouput a TTF/EOT/WOFF/WOFF2/SVG font, Generator of fonts from SVG icons.
 
@@ -84,6 +106,7 @@ const path = require("path");
 svgtofont({
   src: path.resolve(process.cwd(), "icon"), // svg path
   dist: path.resolve(process.cwd(), "fonts"), // output path
+  styleTemplates: path.resolve(rootPath, "styles"), // file templates path (optional)
   fontName: "svgtofont", // font name
   css: true, // Create CSS files.
   startUnicode: 0xea01, // unicode start number
@@ -230,9 +253,17 @@ Clear output directory contents
 ### fontName
 
 > Type: `String`  
-> Default value: `iconfont`  
+> Default value: `iconfont`
 
 The font family name you want.
+
+### styleTemplates
+
+> Type: `String`
+> Default value: `undefined`
+
+The path of the templates, see `src/styles` or `test/templates/styles` to get reference about 
+  how to create a template, file names can have the extension .template, like a `filename.scss.template`
 
 ### startUnicode
 
@@ -269,6 +300,16 @@ type CSSOptions = {
    * Setting font size.
    */
   fontSize?: string;
+  /**
+   * Set the path in the css file
+   * https://github.com/jaywcjlove/svgtofont/issues/48#issuecomment-739547189
+   */
+  cssPath?: string
+  /**
+   * Set file name
+   * https://github.com/jaywcjlove/svgtofont/issues/48#issuecomment-739547189
+   */
+  fileName?: string
 }
 ```
 
@@ -373,6 +414,12 @@ The font [metadata](http://www.w3.org/TR/SVG/metadata.html). You can set any
 Allows you to provide your own logging function. Set to `function(){}` to
  disable logging.
 
+### svgoOptions
+
+> Type: `OptimizeOptions`
+> Default value: `undefined` 
+
+Some options can be configured with `svgoOptions` though it. [svgo](https://github.com/svg/svgo#configuration)
 ### svg2ttf
 
 This is the setting for [svg2ttf](https://github.com/fontello/svg2ttf/tree/c33a126920f46b030e8ce960cc7a0e38a6946bbc#svg2ttfsvgfontstring-options---buf)

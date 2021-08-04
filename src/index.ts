@@ -3,11 +3,11 @@
 import path from 'path';
 import fs from 'fs-extra';
 import image2uri from 'image2uri';
-import htmlMinifier from 'html-minifier';
 import { SVGIcons2SVGFontOptions } from 'svgicons2svgfont';
 import color from 'colors-cli';
+import { OptimizeOptions } from 'svgo';
 import { generateIconsSource, generateReactIcons } from './generate';
-import { createSVG, createTTF, createEOT, createWOFF, createWOFF2, createSvgSymbol, copyTemplate, CSSOptions, createHTML } from './utils';
+import { createSVG, createTTF, createEOT, createWOFF, createWOFF2, createSvgSymbol, copyTemplate, CSSOptions, createHTML, createTypescript, TypescriptOptions } from './utils';
 
 export type SvgToFontOptions = {
   /**
@@ -57,11 +57,17 @@ export type SvgToFontOptions = {
    * This is the setting for [svgicons2svgfont](https://github.com/nfroidure/svgicons2svgfont/tree/dd713bea4f97afa59f7dba6a21ff7f22db565bcf#api)
    */
   svgicons2svgfont?: SVGIcons2SVGFontOptions;
+  /** Some options can be configured with svgoOptions though it. [svgo](https://github.com/svg/svgo#configuration) */
+  svgoOptions?: OptimizeOptions;
   /**
    * Create font class name prefix, default value font name.
    * @default fontName
    */
   classNamePrefix?: SvgToFontOptions['fontName'];
+  /**
+  * Directory of custom templates.
+  */
+  styleTemplates?: string;
   /**
    * unicode start number
    * @default 10000
@@ -135,6 +141,12 @@ export type SvgToFontOptions = {
       url: string;
     }>;
   };
+
+  /**
+   * Create typescript file with declarations for icon classnames
+   * @default false
+   */
+  typescript?: boolean | TypescriptOptions
 }
 
 export default async (options: SvgToFontOptions = {}) => {
@@ -157,7 +169,7 @@ export default async (options: SvgToFontOptions = {}) => {
   options.classNamePrefix = options.classNamePrefix || options.fontName;
   const fontSize = options.css && typeof options.css !== 'boolean' && options.css.fontSize ? options.css.fontSize : '16px';
   // If you generate a font you need to generate a style.
-  if (options.website) options.css = true;
+  if (options.website && !options.css) options.css = true;
 
   try {
     if (options.emptyDist) {
@@ -194,18 +206,20 @@ export default async (options: SvgToFontOptions = {}) => {
     await createSvgSymbol(options);
 
     if (options.css) {
-      console.log('fontSize::', fontSize)
-      await copyTemplate(path.resolve(__dirname, 'styles'), options.dist, {
+      await copyTemplate(options.styleTemplates || path.resolve(__dirname, 'styles'), options.dist, {
         fontname: options.fontName,
         cssString: cssString.join(''),
         cssToVars: cssToVars.join(''),
         fontSize: fontSize,
         timestamp: new Date().getTime(),
         prefix: options.classNamePrefix || options.fontName,
-        _opts: typeof options.css === 'boolean' ? {} : {...options.css}
+        _opts: typeof options.css === 'boolean' ? {} : { ...options.css }
       });
     }
 
+    if (options.typescript) {
+      await createTypescript({ ...options, typescript: options.typescript })
+    }
 
     if (options.website) {
       const pageName = ['font-class', 'unicode', 'symbol'];
@@ -240,7 +254,7 @@ export default async (options: SvgToFontOptions = {}) => {
         fontname: options.fontName,
         classNamePrefix: options.classNamePrefix,
         _type: 'font-class',
-        _link: `${options.fontName}.css`,
+        _link: `${(options.css && typeof options.css !== 'boolean' && options.css.fileName) || options.fontName}.css`,
         _IconHtml: cssIconHtml.join(''),
         _title: options.website.title || options.fontName
       };
@@ -255,31 +269,21 @@ export default async (options: SvgToFontOptions = {}) => {
         tempData.favicon = '';
       }
       const classHtmlStr = await createHTML(options.website.template, tempData);
-      fs.outputFileSync(
-        fontClassPath,
-        htmlMinifier.minify(classHtmlStr as string, { collapseWhitespace: true, minifyCSS: true })
-      );
+      fs.outputFileSync(fontClassPath, classHtmlStr);
       console.log(`${color.green('SUCCESS')} Created ${fontClassPath} `);
 
       tempData._IconHtml = unicodeHtml.join('');
       tempData._type = 'unicode';
       const unicodeHtmlStr = await createHTML(options.website.template, tempData);
-      fs.outputFileSync(
-        unicodePath,
-        htmlMinifier.minify(unicodeHtmlStr, { collapseWhitespace: true, minifyCSS: true })
-      );
+      fs.outputFileSync(unicodePath, unicodeHtmlStr);
       console.log(`${color.green('SUCCESS')} Created ${unicodePath} `);
 
       tempData._IconHtml = symbolHtml.join('');
       tempData._type = 'symbol';
       const symbolHtmlStr = await createHTML(options.website.template, tempData);
-      fs.outputFileSync(
-        symbolPath,
-        htmlMinifier.minify(symbolHtmlStr, { collapseWhitespace: true, minifyCSS: true })
-      );
+      fs.outputFileSync(symbolPath, unicodeHtmlStr);
       console.log(`${color.green('SUCCESS')} Created ${unicodePath} `);
     }
-
 
     if (options.outSVGPath) {
       const outPath = await generateIconsSource(options);
@@ -291,6 +295,6 @@ export default async (options: SvgToFontOptions = {}) => {
     }
 
   } catch (error) {
-    console.log('SvgToFont:ERR:', error);
+    console.log('SvgToFont:CLI:ERR:', error);
   }
 }
